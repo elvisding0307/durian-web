@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import axios from "axios";
 import { API_BASE_URL } from "../config/url";
 import { Response } from "../types/response";
-import { getTokenFromCookie } from "../utils/auth";
+import { getTokenFromCookie } from "../utils/token";
 
 // 插入请求数据类型
 interface InsertRequest {

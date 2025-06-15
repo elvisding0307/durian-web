@@ -15,7 +15,7 @@ import {
 import axios from "axios";
 import { API_BASE_URL } from "../config/url";
 import { Response } from "../types/response";
-import { getTokenFromCookie } from "../utils/auth";
+import { getTokenFromCookie } from "../utils/token";
 
 const { Text } = Typography;
 
@@ -38,14 +38,6 @@ interface QueryResponse {
     account: string;
     password: string;
   }[];
-}
-
-// 更新请求数据类型
-interface UpdateRequest {
-  rid: number;
-  website: string;
-  account: string;
-  password: string;
 }
 
 // 查询接口函数
@@ -81,6 +73,14 @@ export async function requestQuery(
   } catch (e: any) {
     return { code: -1, msg: e.toString() };
   }
+}
+
+// 更新请求数据类型
+interface UpdateRequest {
+  rid: number;
+  website: string;
+  account: string;
+  password: string;
 }
 
 // 更新接口函数
@@ -464,10 +464,7 @@ function DataTable() {
               cancelText="取消"
               disabled={saving}
             >
-              <Typography.Link
-                style={{ marginInlineEnd: 8 }}
-                disabled={saving}
-              >
+              <Typography.Link style={{ marginInlineEnd: 8 }} disabled={saving}>
                 {saving ? "保存中..." : "保存"}
               </Typography.Link>
             </Popconfirm>

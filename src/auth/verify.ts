@@ -1,8 +1,8 @@
 import axios from "axios";
 import { API_BASE_URL } from "../config/url";
-import { getTokenFromCookie } from "../utils/auth";
+import { getTokenFromCookie } from "../utils/token";
 
-export async function requestPing(): Promise<boolean> {
+export async function requestAuthVerify(): Promise<boolean> {
   try {
     // 创建axios实例
     const apiClient = axios.create({
@@ -13,7 +13,7 @@ export async function requestPing(): Promise<boolean> {
       },
     });
 
-    const response = await apiClient.get("/ping", {});
+    const response = await apiClient.get("/auth/verify", {});
     const status = response.status;
     if (status === 200) {
       return true;

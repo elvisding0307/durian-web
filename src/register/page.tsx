@@ -1,36 +1,35 @@
 "use client";
-import { useEffect, useState } from "react";
 import axios from "axios";
-import { invoke } from "@tauri-apps/api/core";
-import { AUTH_BASE_URL } from "../../config/url";
-import { requestPing } from "../../ping/ping";
-import { Response } from "../../types/response";
 import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
 import { UserOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { hashPassword, DURIAN_PASSWORD_SALT, DURIAN_CORE_PASSWORD_SALT } from "../../utils/hash"; // 导入哈希函数和盐值
 
+import { API_BASE_URL } from "../config/url";
+import { Response } from "../types/response";
+import {
+  hashPassword,
+  DURIAN_PASSWORD_SALT,
+  DURIAN_CORE_PASSWORD_SALT,
+} from "../utils/hash";
 
 const { Title } = Typography;
 
-interface LoginResponse {
-  token: string;
-}
-
-export async function requestLogin(
+export async function requestRegister(
   username: string,
   password: string,
   core_password: string
-): Promise<Response<LoginResponse>> {
+): Promise<Response<{}>> {
   try {
     // 创建axios实例
     const apiClient = axios.create({
-      baseURL: AUTH_BASE_URL,
+      baseURL: API_BASE_URL,
       headers: {
         "Content-Type": "application/json",
       },
     });
-    const response = await apiClient.post("/login", {
+
+    const response = await apiClient.post("/register", {
       username,
       password,
       core_password,
@@ -44,71 +43,48 @@ export async function requestLogin(
     return {
       code: response.data.code,
       msg: response.data.msg,
-      data: { token: response.data.data.token },
+      data: {},
     };
   } catch (e: any) {
     return { code: -1, msg: e.toString() };
   }
 }
 
-export default function LoginApp() {
+export default function RegisterApp() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const func = async () => {
-      if ((await requestPing()) === true) {
-        navigate("/account");
-      }
-    };
-    func();
-  }, []);
 
   const onFinish = async (values: any) => {
     setLoading(true);
     try {
       const { username, password, core_password } = values;
-      
       // 对密码进行加盐哈希
-      const { hash: hashedPassword, salt: passwordSalt } = await hashPassword(password, DURIAN_PASSWORD_SALT);
-      const { hash: hashedCorePassword, salt: corePasswordSalt } = await hashPassword(core_password, DURIAN_CORE_PASSWORD_SALT);
-      
-      console.log('Password hash:', hashedPassword);
-      console.log('Password salt:', passwordSalt);
-      console.log('Core password hash:', hashedCorePassword);
-      console.log('Core password salt:', corePasswordSalt);
-      
-      // 使用哈希后的密码进行登录
-      const { code, msg, data } = await requestLogin(
-        username,
-        hashedPassword, // 使用哈希后的密码
-        hashedCorePassword // 使用哈希后的核心密码
+      const { hash: hashedPassword, salt: passwordSalt } = await hashPassword(
+        password,
+        DURIAN_PASSWORD_SALT
       );
-  
-      if (data === undefined) {
-        throw new Error("Invalid response format: missing required fields");
-      }
-  
-      const { token } = data;
+      const { hash: hashedCorePassword, salt: corePasswordSalt } =
+        await hashPassword(core_password, DURIAN_CORE_PASSWORD_SALT);
+
+      console.log("Password hash:", hashedPassword);
+      console.log("Password salt:", passwordSalt);
+      console.log("Core password hash:", hashedCorePassword);
+      console.log("Core password salt:", corePasswordSalt);
+
+      const { code, msg } = await requestRegister(
+        username,
+        hashedPassword,
+        hashedCorePassword
+      );
       if (code === 0) {
-        // 写入cookie
-        document.cookie = `token=${token}; path=/`;
-        
-        // 初始化 Durian 状态（使用原始的 core_password 或哈希后的，根据需求）
-        try {
-          await invoke('init_state', { corePassword: core_password }); // 或使用 hashedCorePassword
-        } catch (error) {
-          console.error('Failed to initialize Durian state:', error);
-        }
-        
-        message.success("登录成功！");
-        navigate("/account");
+        message.success("注册成功！");
+        navigate("/login");
       } else {
         message.error(msg);
       }
     } catch (error) {
-      message.error("登录失败，请重试");
+      message.error("注册失败，请重试");
     } finally {
       setLoading(false);
     }
@@ -117,7 +93,7 @@ export default function LoginApp() {
   return (
     <div style={{ minHeight: "100vh", padding: "20px" }}>
       <Row justify="center" align="middle" style={{ minHeight: "100vh" }}>
-        <Col xs={22} sm={16} md={12} lg={8} xl={6}>
+        <Col xs={22} sm={16} md={12} lg={12} xl={8}>
           <Card
             style={{
               borderRadius: "12px",
@@ -138,13 +114,13 @@ export default function LoginApp() {
                 level={4}
                 style={{ margin: 0, color: "#1890ff", fontWeight: 500 }}
               >
-                用户登录
+                用户注册
               </Title>
             </div>
 
             <Form
               form={form}
-              name="login"
+              name="register"
               onFinish={onFinish}
               layout="vertical"
               size="large"
@@ -152,7 +128,10 @@ export default function LoginApp() {
               <Form.Item
                 name="username"
                 label="用户名"
-                rules={[{ required: true, message: "请输入用户名!" }]}
+                rules={[
+                  { required: true, message: "请输入用户名!" },
+                  { min: 3, message: "用户名至少3个字符!" },
+                ]}
               >
                 <Input
                   prefix={<UserOutlined style={{ color: "#1890ff" }} />}
@@ -164,7 +143,10 @@ export default function LoginApp() {
               <Form.Item
                 name="password"
                 label="密码"
-                rules={[{ required: true, message: "请输入密码!" }]}
+                rules={[
+                  { required: true, message: "请输入密码!" },
+                  { min: 6, message: "密码至少6个字符!" },
+                ]}
               >
                 <Input.Password
                   prefix={<LockOutlined style={{ color: "#1890ff" }} />}
@@ -176,7 +158,10 @@ export default function LoginApp() {
               <Form.Item
                 name="core_password"
                 label="核心密码"
-                rules={[{ required: true, message: "请输入核心密码!" }]}
+                rules={[
+                  { required: true, message: "请输入核心密码!" },
+                  { min: 6, message: "核心密码至少6个字符!" },
+                ]}
               >
                 <Input.Password
                   prefix={<SafetyOutlined style={{ color: "#1890ff" }} />}
@@ -200,18 +185,20 @@ export default function LoginApp() {
                     fontWeight: "500",
                   }}
                 >
-                  登录
+                  注册
                 </Button>
               </Form.Item>
 
               <div style={{ textAlign: "center", marginTop: "16px" }}>
-                <span style={{ color: "#666" }}>还没有账户？</span>
+                <span style={{ color: "#666" }}>已有账户？</span>
                 <Button
                   type="link"
-                  onClick={() => navigate("/auth/register")}
+                  onClick={() => {
+                    navigate("/login");
+                  }}
                   style={{ color: "#1890ff" }}
                 >
-                  立即注册
+                  立即登录
                 </Button>
               </div>
             </Form>
