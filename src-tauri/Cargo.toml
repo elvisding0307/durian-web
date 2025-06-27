@@ -1,8 +1,8 @@
 [package]
 name = "durian-web"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "A password management tool."
+authors = ["ElvisDing"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -24,4 +24,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 ciftl-rs = { version = "0.1.0" }
+# 添加SQLite相关依赖
+rusqlite = { version = "0.31", features = ["bundled"] }
+tokio = { version = "1.0", features = ["full"] }
+dirs = "5.0"
 

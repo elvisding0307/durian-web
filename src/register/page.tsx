@@ -5,9 +5,13 @@ import { UserOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { AUTH_BASE_URL } from "../../config/url";
-import { Response } from "../../types/response";
-import { hashPassword, DURIAN_PASSWORD_SALT, DURIAN_CORE_PASSWORD_SALT } from "../../utils/hash";
+import { API_BASE_URL } from "../config/url";
+import { Response } from "../types/response";
+import {
+  hashPassword,
+  DURIAN_PASSWORD_SALT,
+  DURIAN_CORE_PASSWORD_SALT,
+} from "../utils/hash";
 
 const { Title } = Typography;
 
@@ -19,7 +23,7 @@ export async function requestRegister(
   try {
     // 创建axios实例
     const apiClient = axios.create({
-      baseURL: AUTH_BASE_URL,
+      baseURL: API_BASE_URL,
       headers: {
         "Content-Type": "application/json",
       },
@@ -56,13 +60,19 @@ export default function RegisterApp() {
     try {
       const { username, password, core_password } = values;
       // 对密码进行加盐哈希
-      const { hash: hashedPassword, salt: passwordSalt } = await hashPassword(password, DURIAN_PASSWORD_SALT);
-      const { hash: hashedCorePassword, salt: corePasswordSalt } = await hashPassword(core_password, DURIAN_CORE_PASSWORD_SALT);
-      
-      console.log('Password hash:', hashedPassword);
-      console.log('Password salt:', passwordSalt);
-      console.log('Core password hash:', hashedCorePassword);
-      console.log('Core password salt:', corePasswordSalt);
+      const { hash: hashedPassword } = await hashPassword(
+        password,
+        DURIAN_PASSWORD_SALT
+      );
+      const { hash: hashedCorePassword } = await hashPassword(
+        core_password,
+        DURIAN_CORE_PASSWORD_SALT
+      );
+
+      // console.log("Password hash:", hashedPassword);
+      // console.log("Password salt:", passwordSalt);
+      // console.log("Core password hash:", hashedCorePassword);
+      // console.log("Core password salt:", corePasswordSalt);
 
       const { code, msg } = await requestRegister(
         username,
@@ -71,7 +81,7 @@ export default function RegisterApp() {
       );
       if (code === 0) {
         message.success("注册成功！");
-        navigate("/auth/login");
+        navigate("/login");
       } else {
         message.error(msg);
       }
@@ -85,7 +95,7 @@ export default function RegisterApp() {
   return (
     <div style={{ minHeight: "100vh", padding: "20px" }}>
       <Row justify="center" align="middle" style={{ minHeight: "100vh" }}>
-        <Col xs={22} sm={16} md={12} lg={8} xl={6}>
+        <Col xs={22} sm={16} md={12} lg={12} xl={8}>
           <Card
             style={{
               borderRadius: "12px",
@@ -186,7 +196,7 @@ export default function RegisterApp() {
                 <Button
                   type="link"
                   onClick={() => {
-                    navigate("/auth/login");
+                    navigate("/login");
                   }}
                   style={{ color: "#1890ff" }}
                 >

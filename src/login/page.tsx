@@ -2,14 +2,17 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { invoke } from "@tauri-apps/api/core";
-import { AUTH_BASE_URL } from "../../config/url";
-import { requestPing } from "../../ping/ping";
-import { Response } from "../../types/response";
+import { API_BASE_URL } from "../config/url";
+import { requestAuthVerify } from "../auth/verify";
+import { Response } from "../types/response";
 import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
 import { UserOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { hashPassword, DURIAN_PASSWORD_SALT, DURIAN_CORE_PASSWORD_SALT } from "../../utils/hash"; // 导入哈希函数和盐值
-
+import {
+  hashPassword,
+  DURIAN_PASSWORD_SALT,
+  DURIAN_CORE_PASSWORD_SALT,
+} from "../utils/hash"; // 导入哈希函数和盐值
 
 const { Title } = Typography;
 
@@ -25,7 +28,7 @@ export async function requestLogin(
   try {
     // 创建axios实例
     const apiClient = axios.create({
-      baseURL: AUTH_BASE_URL,
+      baseURL: API_BASE_URL,
       headers: {
         "Content-Type": "application/json",
       },
@@ -58,7 +61,7 @@ export default function LoginApp() {
 
   useEffect(() => {
     const func = async () => {
-      if ((await requestPing()) === true) {
+      if ((await requestAuthVerify()) === true) {
         navigate("/account");
       }
     };
@@ -69,39 +72,48 @@ export default function LoginApp() {
     setLoading(true);
     try {
       const { username, password, core_password } = values;
-      
+
       // 对密码进行加盐哈希
-      const { hash: hashedPassword, salt: passwordSalt } = await hashPassword(password, DURIAN_PASSWORD_SALT);
-      const { hash: hashedCorePassword, salt: corePasswordSalt } = await hashPassword(core_password, DURIAN_CORE_PASSWORD_SALT);
-      
-      console.log('Password hash:', hashedPassword);
-      console.log('Password salt:', passwordSalt);
-      console.log('Core password hash:', hashedCorePassword);
-      console.log('Core password salt:', corePasswordSalt);
-      
+      const { hash: hashedPassword } = await hashPassword(
+        password,
+        DURIAN_PASSWORD_SALT
+      );
+      const { hash: hashedCorePassword } = await hashPassword(
+        core_password,
+        DURIAN_CORE_PASSWORD_SALT
+      );
+
+      // console.log('Password hash:', hashedPassword);
+      // console.log('Password salt:', passwordSalt);
+      // console.log('Core password hash:', hashedCorePassword);
+      // console.log('Core password salt:', corePasswordSalt);
+
       // 使用哈希后的密码进行登录
       const { code, msg, data } = await requestLogin(
         username,
         hashedPassword, // 使用哈希后的密码
         hashedCorePassword // 使用哈希后的核心密码
       );
-  
+
       if (data === undefined) {
         throw new Error("Invalid response format: missing required fields");
       }
-  
+
       const { token } = data;
       if (code === 0) {
         // 写入cookie
         document.cookie = `token=${token}; path=/`;
-        
-        // 初始化 Durian 状态（使用原始的 core_password 或哈希后的，根据需求）
+
+        // 初始化 Durian 状态（传入用户名）
         try {
-          await invoke('init_state', { corePassword: core_password }); // 或使用 hashedCorePassword
+          await invoke("init_state", {
+            corePassword: core_password,
+            username: username, // 传入用户名
+          });
         } catch (error) {
-          console.error('Failed to initialize Durian state:', error);
+          console.error("Failed to initialize Durian state:", error);
         }
-        
+
         message.success("登录成功！");
         navigate("/account");
       } else {
@@ -117,7 +129,7 @@ export default function LoginApp() {
   return (
     <div style={{ minHeight: "100vh", padding: "20px" }}>
       <Row justify="center" align="middle" style={{ minHeight: "100vh" }}>
-        <Col xs={22} sm={16} md={12} lg={8} xl={6}>
+        <Col xs={22} sm={16} md={12} lg={12} xl={8}>
           <Card
             style={{
               borderRadius: "12px",
@@ -208,7 +220,7 @@ export default function LoginApp() {
                 <span style={{ color: "#666" }}>还没有账户？</span>
                 <Button
                   type="link"
-                  onClick={() => navigate("/auth/register")}
+                  onClick={() => navigate("/register")}
                   style={{ color: "#1890ff" }}
                 >
                   立即注册

@@ -4,15 +4,15 @@ import { Tabs } from "antd";
 import { useNavigate } from "react-router-dom";
 import { ManagerBoard } from "./components/manager-board";
 import { QueryManager } from "./query";
-import { requestPing } from "../ping/ping";
+import { requestAuthVerify } from "../auth/verify";
 import { InsertManager } from "./insert";
 
 export default function AccountApp() {
   const navigate = useNavigate();
   useEffect(() => {
     const func = async () => {
-      if ((await requestPing()) !== true) {
-        navigate("/auth/login");
+      if ((await requestAuthVerify()) !== true) {
+        navigate("/login");
       }
     };
     func();

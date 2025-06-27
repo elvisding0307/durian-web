@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import type { TableProps } from "antd";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -15,7 +15,7 @@ import {
 import axios from "axios";
 import { API_BASE_URL } from "../config/url";
 import { Response } from "../types/response";
-import { getTokenFromCookie } from "../utils/auth";
+import { getTokenFromCookie } from "../utils/token";
 
 const { Text } = Typography;
 
@@ -40,12 +40,16 @@ interface QueryResponse {
   }[];
 }
 
-// 更新请求数据类型
-interface UpdateRequest {
-  rid: number;
-  website: string;
-  account: string;
-  password: string;
+// 缓存数据类型
+interface CacheData {
+  username: string;
+  update_time: number;
+  accounts: {
+    rid: number;
+    website: string;
+    account: string;
+    password: string;
+  }[];
 }
 
 // 查询接口函数
@@ -81,6 +85,52 @@ export async function requestQuery(
   } catch (e: any) {
     return { code: -1, msg: e.toString() };
   }
+}
+
+// 保存查询缓存
+async function saveQueryCache(update_time: number, accounts: any[], pull_mode: string) {
+  try {
+    await invoke("save_query_cache", {
+      updateTime: update_time,
+      accountsJson: JSON.stringify(accounts),
+      pullMode: pull_mode,
+    });
+    console.log("缓存保存成功");
+  } catch (error) {
+    console.error("保存缓存失败:", error);
+  }
+}
+
+// 加载查询缓存
+async function loadQueryCache(): Promise<CacheData | null> {
+  try {
+    const result = (await invoke("load_query_cache")) as string;
+    if (result === "null") {
+      return null;
+    }
+    return JSON.parse(result) as CacheData;
+  } catch (error) {
+    console.error("加载缓存失败:", error);
+    return null;
+  }
+}
+
+// 获取最后更新时间
+async function getLastUpdateTime(): Promise<number> {
+  try {
+    return (await invoke("get_last_update_time")) as number;
+  } catch (error) {
+    console.error("获取最后更新时间失败:", error);
+    return 0;
+  }
+}
+
+// 更新请求数据类型
+interface UpdateRequest {
+  rid: number;
+  website: string;
+  account: string;
+  password: string;
 }
 
 // 更新接口函数
@@ -211,52 +261,117 @@ function DataTable() {
   const [deleting, setDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const hasInitialized = useRef(false); // 添加这行
 
   const isEditing = (record: AccountDataType) => record.key === editingKey;
 
+  // 从缓存加载数据
+  const loadFromCache = async () => {
+    try {
+      const cacheData = await loadQueryCache();
+      if (cacheData && cacheData.accounts.length > 0) {
+        // 解密密码
+        const accountsPromises = cacheData.accounts.map(async (account) => {
+          const decryptedPassword = await invoke("decrypt", {
+            message: account.password,
+          });
+
+          return {
+            key: account.rid.toString(),
+            rid: account.rid,
+            website: account.website.trim(),
+            account: account.account,
+            password: decryptedPassword as string,
+          };
+        });
+
+        const accountsData: AccountDataType[] = await Promise.all(
+          accountsPromises
+        );
+        setData(accountsData);
+        setFilteredData(accountsData);
+        message.success(`从缓存加载了 ${accountsData.length} 条记录`);
+        return true;
+      }
+    } catch (error) {
+      console.error("从缓存加载数据失败:", error);
+    }
+    return false;
+  };
+
   // 查询数据
-  const handleQuery = async () => {
+  const handleQuery = async (forceRefresh: boolean = false) => {
     setLoading(true);
     try {
+      let lastUpdateTime = 0;
+
+      // 如果不是强制刷新，先尝试从缓存加载
+      if (!forceRefresh) {
+        const cacheLoaded = await loadFromCache();
+        if (cacheLoaded) {
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // 无论是否强制刷新，都获取最后更新时间用于增量更新
+      lastUpdateTime = await getLastUpdateTime();
+      // 从服务器拉取数据（使用lastUpdateTime进行增量更新）
       const {
         code,
         msg,
         data: responseData,
-      } = await requestQuery(
-        Math.floor(0) // 当前时间戳
-      );
+      } = await requestQuery(lastUpdateTime);
 
       if (code === 0 && responseData) {
-        // 使用 Promise.all 来处理异步解密操作
-        const accountsPromises = responseData.accounts.map(
-          async (account, _) => {
-            const decryptedPassword = await invoke("decrypt", {
-              message: account.password,
-            });
+        // 保存到缓存（保存加密后的密码）
+        const cacheAccounts = responseData.accounts.map((account) => ({
+          rid: account.rid,
+          website: account.website,
+          account: account.account,
+          password: account.password, // 保持加密状态
+          username: "" // 需要添加这个字段
+        }));
+        
+        // 将拉取的数据同步到SQLite
+        await saveQueryCache(responseData.update_time, cacheAccounts, responseData.pull_mode);
+        
+        // 从SQLite中读取数据并解密显示
+        const cacheData = await loadQueryCache();
+        if (cacheData) {
+          // 使用 Promise.all 来处理异步解密操作
+          const accountsPromises = cacheData.accounts.map(
+            async (account, _) => {
+              const decryptedPassword = await invoke("decrypt", {
+                message: account.password,
+              });
 
-            return {
-              key: account.rid.toString(),
-              rid: account.rid,
-              website: account.website.trim(),
-              account: account.account,
-              password: decryptedPassword as string,
-            };
-          }
-        );
+              return {
+                key: account.rid.toString(),
+                rid: account.rid,
+                website: account.website.trim(),
+                account: account.account,
+                password: decryptedPassword as string,
+              };
+            }
+          );
 
-        // 等待所有解密操作完成
-        const accountsData: AccountDataType[] = await Promise.all(
-          accountsPromises
-        );
+          // 等待所有解密操作完成
+          const accountsData: AccountDataType[] = await Promise.all(
+            accountsPromises
+          );
 
-        setData(accountsData);
-        setFilteredData(accountsData);
-        message.success("查询成功");
+          setData(accountsData);
+          setFilteredData(accountsData);
+          
+          message.success(`查询成功，获取到 ${accountsData.length} 条记录`);
+        }
       } else {
         message.error(msg || "查询失败");
       }
     } catch (error) {
       message.error("查询失败");
+      console.error("查询错误:", error);
     } finally {
       setLoading(false);
     }
@@ -314,14 +429,12 @@ function DataTable() {
         rid: record.rid,
       };
 
-      console.log("Delete Data:", deleteData);
-
       const { code, msg } = await requestDelete(deleteData);
 
       if (code === 0) {
         message.success("删除成功");
-        // 重新查询数据以保证数据一致性
-        await handleQuery();
+        // 强制从服务器重新查询数据
+        await handleQuery(true);
       } else {
         message.error(msg || "删除失败");
       }
@@ -367,25 +480,23 @@ function DataTable() {
         password: await invoke("encrypt", { message: row.password }),
       };
 
-      console.log("Update Data:", updateData);
-
       const { code, msg } = await requestUpdate(updateData);
 
       if (code === 0) {
         message.success("更新成功");
         setEditingKey("");
-        // 重新查询数据以保证数据一致性
-        await handleQuery();
+        // 强制从服务器重新查询数据
+        await handleQuery(true);
       } else {
         message.error(msg || "更新失败");
-        // 即使失败也重新查询数据以保证数据一致性
-        await handleQuery();
+        // 即使失败也强制从服务器重新查询数据以保证数据一致性
+        await handleQuery(true);
       }
     } catch (errInfo) {
       console.log("Validate Failed:", errInfo);
       message.error("保存失败");
-      // 发生错误时也重新查询数据
-      await handleQuery();
+      // 发生错误时也强制从服务器重新查询数据
+      await handleQuery(true);
     } finally {
       setSaving(false);
     }
@@ -464,10 +575,7 @@ function DataTable() {
               cancelText="取消"
               disabled={saving}
             >
-              <Typography.Link
-                style={{ marginInlineEnd: 8 }}
-                disabled={saving}
-              >
+              <Typography.Link style={{ marginInlineEnd: 8 }} disabled={saving}>
                 {saving ? "保存中..." : "保存"}
               </Typography.Link>
             </Popconfirm>
@@ -528,7 +636,10 @@ function DataTable() {
 
   // 组件加载时自动查询
   useEffect(() => {
-    handleQuery();
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      handleQuery(true);
+    }
   }, []);
 
   // 监听搜索关键词变化
@@ -545,7 +656,11 @@ function DataTable() {
           onChange={(e) => setQueryKeyword(e.target.value)}
           style={{ flex: 1 }}
         />
-        <Button type="primary" onClick={handleQuery} loading={loading}>
+        <Button
+          type="primary"
+          onClick={() => handleQuery(true)}
+          loading={loading}
+        >
           刷新数据
         </Button>
         <Button type="primary" onClick={handleCopy}>

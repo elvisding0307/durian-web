@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import axios from "axios";
 import { API_BASE_URL } from "../config/url";
 import { Response } from "../types/response";
-import { getTokenFromCookie } from "../utils/auth";
+import { getTokenFromCookie } from "../utils/token";
 
 // 插入请求数据类型
 interface InsertRequest {
@@ -55,8 +55,6 @@ function InsertForm() {
     try {
       setLoading(true);
 
-      console.log("Insert Data:", values);
-
       values.password = await invoke("encrypt", {
         message: values.password,
       });
@@ -71,7 +69,6 @@ function InsertForm() {
         message.error(msg || "插入失败");
       }
     } catch (error) {
-      console.log("Insert Failed:", error);
       message.error("插入失败");
     } finally {
       setLoading(false);

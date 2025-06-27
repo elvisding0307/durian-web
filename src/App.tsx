@@ -5,8 +5,8 @@ import {
   Navigate,
 } from "react-router-dom";
 
-import LoginApp from "./auth/login/page";
-import RegisterApp from "./auth/register/page";
+import LoginApp from "./login/page";
+import RegisterApp from "./register/page";
 import AccountApp from "./account/page";
 
 export default function App() {
@@ -14,9 +14,9 @@ export default function App() {
     <Router>
       <div>
         <Routes>
-          <Route path="/" element={<Navigate to="/auth/login" replace />} />
-          <Route path="/auth/register" element={<RegisterApp />} />
-          <Route path="/auth/login" element={<LoginApp />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/register" element={<RegisterApp />} />
+          <Route path="/login" element={<LoginApp />} />
           <Route path="/account" element={<AccountApp />} />
         </Routes>
       </div>
