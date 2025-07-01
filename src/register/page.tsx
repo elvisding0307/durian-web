@@ -39,9 +39,9 @@ export async function requestRegister(
     };
   } catch (error) {
     console.error("Register failed:", error);
-    return { 
-      code: -1, 
-      msg: error instanceof Error ? error.message : "注册失败" 
+    return {
+      code: -1,
+      msg: error instanceof Error ? error.message : "注册失败",
     };
   }
 }
@@ -70,13 +70,13 @@ export default function RegisterApp() {
         hashedPassword,
         hashedCorePassword
       );
-      if (code === 0) {
-        message.success("注册成功！");
-        navigate("/login");
-      } else {
-        message.error(msg);
+      if (code !== 0) {
+        console.error(`注册失败: ${code}: ${msg}`);
       }
+      message.success("注册成功！");
+      navigate("/login");
     } catch (error) {
+      console.log("注册失败: ", error);
       message.error("注册失败，请重试");
     } finally {
       setLoading(false);
