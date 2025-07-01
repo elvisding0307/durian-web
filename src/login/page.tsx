@@ -4,11 +4,7 @@ import { tauriClient } from "../libs/tauri"; // 添加这行
 import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
 import { UserOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import {
-  hashPassword,
-  DURIAN_PASSWORD_SALT,
-  DURIAN_CORE_PASSWORD_SALT,
-} from "../utils/hash"; // 导入哈希函数和盐值
+
 import { apiClient, ApiResponse, LoginResponse } from "../libs/api";
 import { useAuth } from "../hooks/useAuth";
 const { Title } = Typography;
@@ -18,23 +14,13 @@ export default function LoginApp() {
   const { user, isLoading, login } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-  }, []);
+  useEffect(() => {}, []);
 
   const onFinish = async (values: any) => {
     const { username, password, core_password } = values;
 
-    // 对密码进行加盐哈希
-    const { hash: hashedPassword } = await hashPassword(
-      password,
-      DURIAN_PASSWORD_SALT
-    );
-    const { hash: hashedCorePassword } = await hashPassword(
-      core_password,
-      DURIAN_CORE_PASSWORD_SALT
-    );
-    login(username, hashedPassword, hashedCorePassword);
-    if (user) {
+    await login(username, password, core_password);
+    if (await tauriClient.getUsername() !== null) {
       message.success("登录成功！");
       navigate("/account");
     } else {

@@ -9,6 +9,11 @@ import {
 } from "react";
 import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
 import { useNavigate } from "react-router-dom";
+import {
+  hashPassword,
+  DURIAN_PASSWORD_SALT,
+  DURIAN_CORE_PASSWORD_SALT,
+} from "../utils/hash";
 import { apiClient } from "../libs/api";
 import { tauriClient } from "../libs/tauri";
 
@@ -43,10 +48,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     try {
       setIsLoading(true);
+      // 对密码进行加盐哈希
+      const { hash: hashedPassword } = await hashPassword(
+        password,
+        DURIAN_PASSWORD_SALT
+      );
+      const { hash: hashedCorePassword } = await hashPassword(
+        core_password,
+        DURIAN_CORE_PASSWORD_SALT
+      );
       const response = await apiClient.login({
         username,
-        password,
-        core_password,
+        password: hashedPassword,
+        core_password: hashedCorePassword,
       });
       // 解构赋值
       const { code, msg, data } = response;
@@ -73,26 +87,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const checkAuth = async () => {
-    try {
-      setIsLoading(true);
-      if (await apiClient.verify()) {
-        const username = (await tauriClient.getUsername()) || null;
-        // 对 username 非空判断
-        if (username !== null) {
-          setUser({ username });
-        } else {
-          // 清空用户状态
-          setUser(null);
-        }
-        return;
-      }
-      setUser(null);
-    } catch (error) {
-      console.error("Auth check failed:", error);
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
+    // try {
+    //   setIsLoading(true);
+    //   if (!(await apiClient.verify())) {
+    //     return;
+    //   }
+    // } catch (error) {
+    //   console.error("Auth check failed:", error);
+    // } finally {
+    //   setIsLoading(false);
+    // }
   };
 
   // const logout = async () => {

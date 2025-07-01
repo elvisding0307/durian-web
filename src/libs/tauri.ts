@@ -8,7 +8,7 @@ class TauriClient {
       message: message,
     });
   }
-  
+
   async decrypt(message: string): Promise<string> {
     return invoke("decrypt", {
       message: message,
@@ -16,7 +16,11 @@ class TauriClient {
   }
 
   // 初始化状态
-  async initState(username: string, corePassword: string, token: string): Promise<void> {
+  async initState(
+    username: string,
+    corePassword: string,
+    token: string
+  ): Promise<void> {
     return invoke("init_state", {
       username: username,
       corePassword: corePassword,
@@ -25,7 +29,11 @@ class TauriClient {
   }
 
   // 保存查询缓存
-  async saveQueryCache(updateTime: number, accountsJson: string, pullMode: string): Promise<void> {
+  async saveQueryCache(
+    updateTime: number,
+    accountsJson: string,
+    pullMode: string
+  ): Promise<void> {
     return invoke("save_query_cache", {
       update_time: updateTime,
       accounts_json: accountsJson,
@@ -49,8 +57,14 @@ class TauriClient {
   }
 
   // 获取用户名
-  async getUsername(): Promise<string> {
-    return invoke("get_username");
+  async getUsername(): Promise<string | null> {
+    try {
+      const username = (await invoke("get_username")) as string;
+      return username;
+    } catch (error) {
+      console.error("getUsername error: ", error);
+      return null;
+    }
   }
 }
 

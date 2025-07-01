@@ -367,14 +367,12 @@ fn get_username() -> Result<String, String> {
 
 #[tauri::command]
 fn get_token() -> Result<String, String> {
-    println!("get_token");
     unsafe {
         let state = match DURIAN_STATE {
             None => return Err("DurianState未初始化".to_string()),
             Some(ref s) => s,
         };
         let state = state.lock().map_err(|_| "锁定错误".to_string())?;
-        println!("State: {:?}", state.token);
         Ok(state.token.clone())
     }
 }
