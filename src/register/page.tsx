@@ -4,9 +4,8 @@ import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
 import { UserOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ApiResponse } from "../libs/api";
+import { apiClient, ApiResponse } from "../libs/api";
 
-import { API_URL } from "../config/url";
 import {
   hashPassword,
   DURIAN_PASSWORD_SALT,
@@ -21,32 +20,29 @@ export async function requestRegister(
   core_password: string
 ): Promise<ApiResponse<{}>> {
   try {
-    // 创建axios实例
-    const apiClient = axios.create({
-      baseURL: API_URL,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    const response = await apiClient.post("/register", {
+    const response = await apiClient.register({
       username,
       password,
       core_password,
     });
 
-    const { code, msg } = response.data;
+    // 解构赋值
+    const { code, msg, data } = response;
     if (code === undefined || msg === undefined) {
       throw new Error("Invalid response format: missing required fields");
     }
 
     return {
-      code: response.data.code,
-      msg: response.data.msg,
-      data: {},
+      code: response.code,
+      msg: response.msg,
+      data: data || {},
     };
-  } catch (e: any) {
-    return { code: -1, msg: e.toString() };
+  } catch (error) {
+    console.error("Register failed:", error);
+    return { 
+      code: -1, 
+      msg: error instanceof Error ? error.message : "注册失败" 
+    };
   }
 }
 
@@ -68,11 +64,6 @@ export default function RegisterApp() {
         core_password,
         DURIAN_CORE_PASSWORD_SALT
       );
-
-      // console.log("Password hash:", hashedPassword);
-      // console.log("Password salt:", passwordSalt);
-      // console.log("Core password hash:", hashedCorePassword);
-      // console.log("Core password salt:", corePasswordSalt);
 
       const { code, msg } = await requestRegister(
         username,

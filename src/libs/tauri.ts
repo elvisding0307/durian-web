@@ -62,7 +62,6 @@ class TauriClient {
       const username = (await invoke("get_username")) as string;
       return username;
     } catch (error) {
-      console.error("getUsername error: ", error);
       return null;
     }
   }

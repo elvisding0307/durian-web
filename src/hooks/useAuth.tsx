@@ -22,7 +22,7 @@ interface User {
 }
 
 interface AuthContextType {
-  user: User | null;
+  // user: User | null;
   isLoading: boolean;
   login: (
     username: string,
@@ -39,7 +39,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  // const [user, setUser] = useState<User | null>(null);
 
   const login = async (
     username: string,
@@ -64,17 +64,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       // 解构赋值
       const { code, msg, data } = response;
-      if (code === undefined || msg === undefined || data === undefined) {
+      if (code === undefined || msg === undefined) {
         throw new Error("Invalid response format: missing required fields");
       }
       // 登录成功
       if (response.code === 0 && response.data) {
+        if (!data) {
+          throw new Error("Invalid response format: missing data");
+        }
         const { token } = data;
         if (!token) {
           throw new Error("Invalid response format: missing token");
         }
         // 设置用户状态
-        setUser({ username });
         await tauriClient.initState(username, core_password, token);
       } else {
         throw new Error(`${response.code}: ${response.msg}` || "登录失败");
@@ -105,7 +107,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   //   } catch (error) {
   //     console.error("Logout failed:", error);
   //   } finally {
-  //     setUser(null);
   //     router.push("/admin/login");
   //   }
   // };
@@ -117,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user,
+        // user,
         isLoading,
         // isAuthenticated,
         login,
