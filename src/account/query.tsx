@@ -13,9 +13,9 @@ import {
   message,
 } from "antd";
 import axios from "axios";
-import { API_BASE_URL } from "../config/url";
-import { Response } from "../types/response";
+import { API_URL } from "../config/url";
 import { getTokenFromCookie } from "../utils/token";
+import { ApiResponse } from "../libs/api";
 
 const { Text } = Typography;
 
@@ -55,11 +55,11 @@ interface CacheData {
 // 查询接口函数
 export async function requestQuery(
   update_time: number
-): Promise<Response<QueryResponse>> {
+): Promise<ApiResponse<QueryResponse>> {
   try {
     // 创建axios实例
     const apiClient = axios.create({
-      baseURL: API_BASE_URL,
+      baseURL: API_URL,
       headers: {
         "Content-Type": "application/json",
         Authorization: (await getTokenFromCookie()) ?? "",
@@ -136,11 +136,11 @@ interface UpdateRequest {
 // 更新接口函数
 export async function requestUpdate(
   updateData: UpdateRequest
-): Promise<Response<{}>> {
+): Promise<ApiResponse<{}>> {
   try {
     // 创建axios实例
     const apiClient = axios.create({
-      baseURL: API_BASE_URL,
+      baseURL: API_URL,
       headers: {
         "Content-Type": "application/json",
         Authorization: (await getTokenFromCookie()) ?? "",
@@ -171,11 +171,11 @@ interface DeleteRequest {
 // 删除接口函数
 export async function requestDelete(
   deleteData: DeleteRequest
-): Promise<Response<{}>> {
+): Promise<ApiResponse<{}>> {
   try {
     // 创建axios实例
     const apiClient = axios.create({
-      baseURL: API_BASE_URL,
+      baseURL: API_URL,
       headers: {
         "Content-Type": "application/json",
         Authorization: (await getTokenFromCookie()) ?? "",

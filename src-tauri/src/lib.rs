@@ -26,38 +26,45 @@ pub struct CacheData {
 static mut DURIAN_STATE: Option<Arc<Mutex<DurianState>>> = None;
 
 struct DurianState {
+    // 新增用户名字段
+    pub username: String,
     pub core_password: String,
+    pub token: String,
     pub db_path: PathBuf,
-    pub username: String,  // 新增用户名字段
 }
 
 impl DurianState {
-    pub fn new(core_password: String, username: String) -> Result<DurianState, Box<dyn std::error::Error>> {
+    pub fn new(
+        username: String,
+        core_password: String,
+        token: String,
+    ) -> Result<DurianState, Box<dyn std::error::Error>> {
         // 获取AppData目录
         let app_data_dir = dirs::data_dir()
             .ok_or("无法获取AppData目录")?
             .join("durian-web");
-        
+
         // 确保目录存在
         std::fs::create_dir_all(&app_data_dir)?;
-        
+
         let db_path = app_data_dir.join("cache.db");
-        
+
         let state = DurianState {
-            core_password,
-            db_path,
             username,
+            core_password,
+            token,
+            db_path,
         };
-        
+
         // 初始化数据库
         state.init_database()?;
-        
+
         Ok(state)
     }
-    
+
     fn init_database(&self) -> SqlResult<()> {
         let conn = Connection::open(&self.db_path)?;
-        
+
         // 创建缓存元数据表（移除id字段）
         conn.execute(
             "CREATE TABLE IF NOT EXISTS cache_metadata (
@@ -66,8 +73,8 @@ impl DurianState {
             )",
             [],
         )?;
-        
-        // 创建账户表（rid为主键，移除id字段和updated_at字段）
+
+        // 创建账户表（rid为主键）
         conn.execute(
             "CREATE TABLE IF NOT EXISTS accounts (
                 rid INTEGER NOT NULL,
@@ -79,22 +86,22 @@ impl DurianState {
             )",
             [],
         )?;
-        
+
         Ok(())
     }
-    
+
     fn save_cache_data(&self, data: &CacheData, pull_mode: &str) -> SqlResult<()> {
         let conn = Connection::open(&self.db_path)?;
-        
+
         // 开始事务
         let tx = conn.unchecked_transaction()?;
-        
-        // 更新或插入时间戳（使用当前用户名）
+
+        // 更新或插入时间戳
         tx.execute(
             "INSERT OR REPLACE INTO cache_metadata (username, last_update_time) VALUES (?1, ?2)",
             [&self.username, &data.update_time.to_string()],
         )?;
-        
+
         match pull_mode {
             "PULL_ALL" => {
                 // 清空该用户的所有数据，然后插入全部数据
@@ -111,7 +118,7 @@ impl DurianState {
                         ],
                     )?;
                 }
-            },
+            }
             "PULL_UPDATED" => {
                 // 根据rid和username进行增量更新
                 for account in &data.accounts {
@@ -126,22 +133,25 @@ impl DurianState {
                         ],
                     )?;
                 }
-            },
+            }
             "PULL_NOTHING" => {
                 // 不做任何数据操作，只更新时间戳
-            },
+            }
             _ => {
-                return Err(rusqlite::Error::InvalidParameterName(format!("未知的pull_mode: {}", pull_mode)));
+                return Err(rusqlite::Error::InvalidParameterName(format!(
+                    "未知的pull_mode: {}",
+                    pull_mode
+                )));
             }
         }
-        
+
         tx.commit()?;
         Ok(())
     }
-    
+
     fn load_cache_data(&self) -> SqlResult<Option<CacheData>> {
         let conn = Connection::open(&self.db_path)?;
-        
+
         // 获取该用户的最后更新时间
         let update_time: i64 = match conn.query_row(
             "SELECT last_update_time FROM cache_metadata WHERE username = ?1",
@@ -151,17 +161,17 @@ impl DurianState {
             Ok(time) => time,
             Err(_) => return Ok(None), // 用户不存在
         };
-        
+
         // 如果没有缓存数据，返回None
         if update_time == 0 {
             return Ok(None);
         }
-        
+
         // 获取该用户的账户数据
         let mut stmt = conn.prepare(
             "SELECT rid, website, account, password FROM accounts WHERE username = ?1 ORDER BY website"
         )?;
-        
+
         let account_iter = stmt.query_map([&self.username], |row| {
             Ok(AccountRecord {
                 rid: row.get(0)?,
@@ -171,19 +181,19 @@ impl DurianState {
                 username: self.username.clone(),
             })
         })?;
-        
+
         let mut accounts = Vec::new();
         for account in account_iter {
             accounts.push(account?);
         }
-        
+
         Ok(Some(CacheData {
             update_time,
             accounts,
             username: self.username.clone(),
         }))
     }
-    
+
     fn get_last_update_time(&self) -> SqlResult<i64> {
         let conn = Connection::open(&self.db_path)?;
         match conn.query_row(
@@ -198,8 +208,8 @@ impl DurianState {
 }
 
 #[tauri::command]
-fn init_state(core_password: String, username: String) -> Result<(), String> {
-    match DurianState::new(core_password, username) {
+fn init_state(username: String, core_password: String, token: String) -> Result<(), String> {
+    match DurianState::new(username, core_password, token) {
         Ok(durian_state) => {
             let state = Arc::new(Mutex::new(durian_state));
             unsafe {
@@ -207,7 +217,7 @@ fn init_state(core_password: String, username: String) -> Result<(), String> {
             }
             Ok(())
         }
-        Err(e) => Err(format!("初始化状态失败: {}", e))
+        Err(e) => Err(format!("初始化状态失败: {}", e)),
     }
 }
 
@@ -224,7 +234,7 @@ fn save_query_cache(
         };
         state.lock().map_err(|_| "锁定错误".to_string())?
     };
-    
+
     // 解析 JSON 为临时结构体（不包含 username）
     #[derive(Deserialize)]
     struct TempAccountRecord {
@@ -233,10 +243,10 @@ fn save_query_cache(
         account: String,
         password: String,
     }
-    
-    let temp_accounts: Vec<TempAccountRecord> = serde_json::from_str(&accounts_json)
-        .map_err(|e| format!("解析账户数据失败: {}", e))?;
-    
+
+    let temp_accounts: Vec<TempAccountRecord> =
+        serde_json::from_str(&accounts_json).map_err(|e| format!("解析账户数据失败: {}", e))?;
+
     // 转换为完整的 AccountRecord，添加用户名
     let accounts: Vec<AccountRecord> = temp_accounts
         .into_iter()
@@ -248,17 +258,17 @@ fn save_query_cache(
             password: temp.password,
         })
         .collect();
-    
+
     let cache_data = CacheData {
         username: durian_state.username.clone(),
         update_time,
         accounts,
     };
-    
+
     durian_state
         .save_cache_data(&cache_data, &pull_mode)
         .map_err(|e| e.to_string())?;
-    
+
     Ok(())
 }
 
@@ -269,11 +279,13 @@ fn load_query_cache() -> Result<String, String> {
             None => return Err("DurianState未初始化".to_string()),
             Some(ref s) => s,
         };
-        
-        match state.lock()
+
+        match state
+            .lock()
             .map_err(|_| "锁定错误".to_string())?
             .load_cache_data()
-            .map_err(|e| format!("加载缓存失败: {}", e))? {
+            .map_err(|e| format!("加载缓存失败: {}", e))?
+        {
             Some(cache_data) => Ok(serde_json::to_string(&cache_data).unwrap()),
             None => Ok("null".to_string()),
         }
@@ -287,8 +299,9 @@ fn get_last_update_time() -> Result<i64, String> {
             None => return Err("DurianState未初始化".to_string()),
             Some(ref s) => s,
         };
-        
-        state.lock()
+
+        state
+            .lock()
             .map_err(|_| "锁定错误".to_string())?
             .get_last_update_time()
             .map_err(|e| format!("获取最后更新时间失败: {}", e))
@@ -331,9 +344,39 @@ fn decrypt(message: String) -> Result<String, &'static str> {
     let crypter = StringCrypter::<chacha20::ChaCha20CipherAlgorithm>::default();
     let decrypted = crypter
         .decrypt(&message, core_password)
-        .map_err(|_|  "Decryption Error")?;
+        .map_err(|_| "Decryption Error")?;
     // println!("decrypted: {:?}", decrypted);
     Ok(decrypted)
+}
+
+#[tauri::command]
+fn get_username() -> Result<String, String> {
+    unsafe {
+        let state = match DURIAN_STATE {
+            None => return Err("DurianState未初始化".to_string()),
+            Some(ref s) => s,
+        };
+
+        Ok(state
+            .lock()
+            .map_err(|_| "锁定错误".to_string())?
+            .username
+            .clone())
+    }
+}
+
+#[tauri::command]
+fn get_token() -> Result<String, String> {
+    println!("get_token");
+    unsafe {
+        let state = match DURIAN_STATE {
+            None => return Err("DurianState未初始化".to_string()),
+            Some(ref s) => s,
+        };
+        let state = state.lock().map_err(|_| "锁定错误".to_string())?;
+        println!("State: {:?}", state.token);
+        Ok(state.token.clone())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -341,12 +384,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            encrypt, 
-            decrypt, 
             init_state,
+            encrypt,
+            decrypt,
             save_query_cache,
             load_query_cache,
-            get_last_update_time
+            get_last_update_time,
+            get_username,
+            get_token
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -4,9 +4,9 @@ import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
 import { UserOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ApiResponse } from "../libs/api";
 
-import { API_BASE_URL } from "../config/url";
-import { Response } from "../types/response";
+import { API_URL } from "../config/url";
 import {
   hashPassword,
   DURIAN_PASSWORD_SALT,
@@ -19,11 +19,11 @@ export async function requestRegister(
   username: string,
   password: string,
   core_password: string
-): Promise<Response<{}>> {
+): Promise<ApiResponse<{}>> {
   try {
     // 创建axios实例
     const apiClient = axios.create({
-      baseURL: API_BASE_URL,
+      baseURL: API_URL,
       headers: {
         "Content-Type": "application/json",
       },

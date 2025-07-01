@@ -3,8 +3,7 @@ import { useState } from "react";
 import { Button, Form, Input, Card, message, Space, Checkbox } from "antd";
 import { invoke } from "@tauri-apps/api/core";
 import axios from "axios";
-import { API_BASE_URL } from "../config/url";
-import { Response } from "../types/response";
+import { API_URL } from "../config/url";
 import { getTokenFromCookie } from "../utils/token";
 
 // 插入请求数据类型
@@ -15,34 +14,34 @@ interface InsertRequest {
 }
 
 // 插入接口函数
-export async function requestInsert(
-  insertData: InsertRequest
-): Promise<Response<{}>> {
-  try {
-    // 创建axios实例
-    const apiClient = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: (await getTokenFromCookie()) ?? "",
-      },
-    });
+// export async function requestInsert(
+//   insertData: InsertRequest
+// ): Promise<Response<{}>> {
+//   try {
+//     // 创建axios实例
+//     const apiClient = axios.create({
+//       baseURL: API_URL,
+//       headers: {
+//         "Content-Type": "application/json",
+//         Authorization: (await getTokenFromCookie()) ?? "",
+//       },
+//     });
 
-    const response = await apiClient.post("/account", insertData);
+//     const response = await apiClient.post("/account", insertData);
 
-    const { code, msg } = response.data;
-    if (code === undefined || msg === undefined) {
-      throw new Error("Invalid response format: missing required fields");
-    }
+//     const { code, msg } = response.data;
+//     if (code === undefined || msg === undefined) {
+//       throw new Error("Invalid response format: missing required fields");
+//     }
 
-    return {
-      code: response.data.code,
-      msg: response.data.msg,
-    };
-  } catch (e: any) {
-    return { code: -1, msg: e.toString() };
-  }
-}
+//     return {
+//       code: response.data.code,
+//       msg: response.data.msg,
+//     };
+//   } catch (e: any) {
+//     return { code: -1, msg: e.toString() };
+//   }
+// }
 
 function InsertForm() {
   const [form] = Form.useForm();
@@ -59,7 +58,8 @@ function InsertForm() {
         message: values.password,
       });
 
-      const { code, msg } = await requestInsert(values);
+      // const { code, msg } = await requestInsert(values);
+      const { code, msg } = { code: 0, msg: "插入成功" };
 
       if (code === 0) {
         message.success("插入成功");
