@@ -18,7 +18,7 @@ import {
   type ApiResponse,
 } from "../libs/api";
 import { tauriClient } from "../libs/tauri";
-import { pinyin } from 'pinyin-pro';
+import { pinyin } from "pinyin-pro";
 
 const { Text } = Typography;
 
@@ -404,33 +404,45 @@ function DataTable() {
     const filtered = data.filter((item) => {
       const website = item.website.toLowerCase();
       const keyword = queryKeyword.toLowerCase();
-      
+
       // 英文匹配（不区分大小写）
       if (website.includes(keyword)) {
         return true;
       }
-      
+
       // 中文拼音匹配
       try {
         // 获取网站名称的拼音（不带音调）
-        const websitePinyin = pinyin(item.website, { toneType: 'none', type: 'array' }).join('');
-        const websitePinyinWithSpace = pinyin(item.website, { toneType: 'none', type: 'array' }).join(' ');
-        
+        const websitePinyin = pinyin(item.website, {
+          toneType: "none",
+          type: "array",
+        }).join("");
+        const websitePinyinWithSpace = pinyin(item.website, {
+          toneType: "none",
+          type: "array",
+        }).join(" ");
+
         // 检查拼音匹配（连续拼音和带空格拼音）
-        if (websitePinyin.toLowerCase().includes(keyword) || 
-            websitePinyinWithSpace.toLowerCase().includes(keyword)) {
+        if (
+          websitePinyin.toLowerCase().includes(keyword) ||
+          websitePinyinWithSpace.toLowerCase().includes(keyword)
+        ) {
           return true;
         }
-        
+
         // 检查拼音首字母匹配
-        const pinyinInitials = pinyin(item.website, { pattern: 'initial', toneType: 'none', type: 'array' }).join('');
+        const pinyinInitials = pinyin(item.website, {
+          pattern: "initial",
+          toneType: "none",
+          type: "array",
+        }).join("");
         if (pinyinInitials.toLowerCase().includes(keyword)) {
           return true;
         }
       } catch (error) {
-        console.warn('拼音转换失败:', error);
+        console.warn("拼音转换失败:", error);
       }
-      
+
       return false;
     });
 

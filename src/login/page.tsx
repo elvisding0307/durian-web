@@ -60,6 +60,7 @@ export default function LoginApp() {
               onFinish={onFinish}
               layout="vertical"
               size="large"
+              autoComplete="off"
             >
               <Form.Item
                 name="username"
@@ -70,6 +71,10 @@ export default function LoginApp() {
                   prefix={<UserOutlined style={{ color: "#1890ff" }} />}
                   placeholder="请输入用户名"
                   style={{ borderColor: "#d9d9d9" }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                 />
               </Form.Item>
 
@@ -82,6 +87,7 @@ export default function LoginApp() {
                   prefix={<LockOutlined style={{ color: "#1890ff" }} />}
                   placeholder="请输入密码"
                   style={{ borderColor: "#d9d9d9" }}
+                  autoComplete="new-password"
                 />
               </Form.Item>
 
@@ -94,6 +100,7 @@ export default function LoginApp() {
                   prefix={<SafetyOutlined style={{ color: "#1890ff" }} />}
                   placeholder="请输入核心密码"
                   style={{ borderColor: "#d9d9d9" }}
+                  autoComplete="new-password"
                 />
               </Form.Item>
 
