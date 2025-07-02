@@ -4,7 +4,7 @@ export default function Footer() {
       <div className="py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-row items-center justify-center">
           <p className="text-center text-base text-gray-500">
-            Elvis Ding &copy; 2025 Durian Web. All rights reserved.
+            Copyright &copy; 2025 ElvisDing. All rights reserved.
           </p>
         </div>
       </div>
