@@ -1,17 +1,15 @@
-"use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { tauriClient } from "../libs/tauri"; // 添加这行
 import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
 import { UserOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 
-import { apiClient, ApiResponse, LoginResponse } from "../libs/api";
 import { useAuth } from "../hooks/useAuth";
 const { Title } = Typography;
 
 export default function LoginApp() {
   const [form] = Form.useForm();
-  const { user, isLoading, login } = useAuth();
+  const { isLoading, login } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {}, []);
@@ -20,7 +18,7 @@ export default function LoginApp() {
     const { username, password, core_password } = values;
 
     await login(username, password, core_password);
-    if (await tauriClient.getUsername() !== null) {
+    if ((await tauriClient.getUsername()) !== null) {
       message.success("登录成功！");
       navigate("/account");
     } else {

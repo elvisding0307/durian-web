@@ -11,8 +11,8 @@ import AccountApp from "./account/page";
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <div>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
@@ -21,7 +21,7 @@ export default function App() {
             <Route path="/account" element={<AccountApp />} />
           </Routes>
         </div>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 }

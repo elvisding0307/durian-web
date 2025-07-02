@@ -1,5 +1,3 @@
-"use client";
-
 import {
   useState,
   useEffect,
@@ -7,7 +5,6 @@ import {
   useContext,
   ReactNode,
 } from "react";
-import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
 import { useNavigate } from "react-router-dom";
 import {
   hashPassword,
@@ -22,7 +19,7 @@ interface User {
 }
 
 interface AuthContextType {
-  // user: User | null;
+  user: User | null;
   isLoading: boolean;
   login: (
     username: string,
@@ -39,7 +36,8 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
-  // const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const navigate = useNavigate(); // Move useNavigate to the top level
 
   const login = async (
     username: string,
@@ -78,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         // 设置用户状态
         await tauriClient.initState(username, core_password, token);
+        setUser({ username });
       } else {
         throw new Error(`${response.code}: ${response.msg}` || "登录失败");
       }
@@ -89,16 +88,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const checkAuth = async () => {
-    // try {
-    //   setIsLoading(true);
-    //   if (!(await apiClient.verify())) {
-    //     return;
-    //   }
-    // } catch (error) {
-    //   console.error("Auth check failed:", error);
-    // } finally {
-    //   setIsLoading(false);
-    // }
+    try {
+      setIsLoading(true);
+      if (!(await apiClient.verify())) {
+        setUser(null);
+        return;
+      }
+      const username = (await tauriClient.getUsername()) || null;
+      if (username === null) {
+        setUser(null);
+        return;
+      }
+      setUser({ username });
+      navigate("/account"); // Use the navigate from the top level
+    } catch (error) {
+      console.error("Auth check failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // const logout = async () => {
@@ -118,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        // user,
+        user,
         isLoading,
         // isAuthenticated,
         login,

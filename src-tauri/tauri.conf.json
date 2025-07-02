@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "durian-web",
+  "productName": "Durian",
   "version": "0.1.0",
   "identifier": "com.durian-web.app",
   "build": {
@@ -12,12 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "笃里安密码管理器",
+        "title": "笃里安",
         "width": 1200,
         "height": 750,
         "minWidth": 1200,
         "minHeight": 750
-
       }
     ],
     "security": {
@@ -33,7 +32,13 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-
-    ]
+    ],
+    "publisher": "ElvisDing",
+    "copyright": "Copyright © 2024 ElvisDing. All rights reserved.",
+    "category": "Productivity",
+    "shortDescription": "密码管理器",
+    "longDescription": "笃里安是一款安全可靠的密码管理器，可以帮助用户安全地存储和管理各种账户密码。",
+    "license": "Apache",
+    "licenseFile": "../LICENSE"
   }
 }

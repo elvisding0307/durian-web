@@ -1,5 +1,3 @@
-"use client";
-import axios from "axios";
 import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
 import { UserOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useState } from "react";

@@ -1,13 +1,11 @@
-"use client";
-import { useEffect } from "react";
 import { Tabs } from "antd";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import { ManagerBoard } from "./components/manager-board";
 import { QueryManager } from "./query";
 import { InsertManager } from "./insert";
 
 export default function AccountApp() {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
 
   return (
     <ManagerBoard>
