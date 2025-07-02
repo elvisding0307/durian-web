@@ -1,12 +1,9 @@
-"use client";
-import axios from "axios";
 import { Form, Input, Button, Card, Typography, message, Row, Col } from "antd";
 import { UserOutlined, LockOutlined, SafetyOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiClient, ApiResponse } from "../libs/api";
 
-import { API_BASE_URL } from "../config/url";
-import { Response } from "../types/response";
 import {
   hashPassword,
   DURIAN_PASSWORD_SALT,
@@ -19,34 +16,31 @@ export async function requestRegister(
   username: string,
   password: string,
   core_password: string
-): Promise<Response<{}>> {
+): Promise<ApiResponse<{}>> {
   try {
-    // 创建axios实例
-    const apiClient = axios.create({
-      baseURL: API_BASE_URL,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    const response = await apiClient.post("/register", {
+    const response = await apiClient.register({
       username,
       password,
       core_password,
     });
 
-    const { code, msg } = response.data;
+    // 解构赋值
+    const { code, msg, data } = response;
     if (code === undefined || msg === undefined) {
       throw new Error("Invalid response format: missing required fields");
     }
 
     return {
-      code: response.data.code,
-      msg: response.data.msg,
-      data: {},
+      code: response.code,
+      msg: response.msg,
+      data: data || {},
     };
-  } catch (e: any) {
-    return { code: -1, msg: e.toString() };
+  } catch (error) {
+    console.error("Register failed:", error);
+    return {
+      code: -1,
+      msg: error instanceof Error ? error.message : "注册失败",
+    };
   }
 }
 
@@ -69,23 +63,18 @@ export default function RegisterApp() {
         DURIAN_CORE_PASSWORD_SALT
       );
 
-      // console.log("Password hash:", hashedPassword);
-      // console.log("Password salt:", passwordSalt);
-      // console.log("Core password hash:", hashedCorePassword);
-      // console.log("Core password salt:", corePasswordSalt);
-
       const { code, msg } = await requestRegister(
         username,
         hashedPassword,
         hashedCorePassword
       );
-      if (code === 0) {
-        message.success("注册成功！");
-        navigate("/login");
-      } else {
-        message.error(msg);
+      if (code !== 0) {
+        console.error(`注册失败: ${code}: ${msg}`);
       }
+      message.success("注册成功！");
+      navigate("/login");
     } catch (error) {
+      console.log("注册失败: ", error);
       message.error("注册失败，请重试");
     } finally {
       setLoading(false);
@@ -126,6 +115,7 @@ export default function RegisterApp() {
               onFinish={onFinish}
               layout="vertical"
               size="large"
+              autoComplete="off"
             >
               <Form.Item
                 name="username"
@@ -139,6 +129,10 @@ export default function RegisterApp() {
                   prefix={<UserOutlined style={{ color: "#1890ff" }} />}
                   placeholder="请输入用户名"
                   style={{ borderColor: "#d9d9d9" }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                 />
               </Form.Item>
 
@@ -154,6 +148,7 @@ export default function RegisterApp() {
                   prefix={<LockOutlined style={{ color: "#1890ff" }} />}
                   placeholder="请输入密码"
                   style={{ borderColor: "#d9d9d9" }}
+                  autoComplete="new-password"
                 />
               </Form.Item>
 
@@ -169,6 +164,7 @@ export default function RegisterApp() {
                   prefix={<SafetyOutlined style={{ color: "#1890ff" }} />}
                   placeholder="请输入核心密码"
                   style={{ borderColor: "#d9d9d9" }}
+                  autoComplete="new-password"
                 />
               </Form.Item>
 

@@ -1,22 +1,11 @@
-"use client";
-import { useEffect } from "react";
 import { Tabs } from "antd";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import { ManagerBoard } from "./components/manager-board";
 import { QueryManager } from "./query";
-import { requestAuthVerify } from "../auth/verify";
 import { InsertManager } from "./insert";
 
 export default function AccountApp() {
-  const navigate = useNavigate();
-  useEffect(() => {
-    const func = async () => {
-      if ((await requestAuthVerify()) !== true) {
-        navigate("/login");
-      }
-    };
-    func();
-  }, []);
+  // const navigate = useNavigate();
 
   return (
     <ManagerBoard>
