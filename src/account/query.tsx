@@ -324,6 +324,7 @@ function DataTable() {
       const username = await tauriClient.getUsername();
 
       if (code === 0 && responseData) {
+        console.debug("response data: ", responseData);
         // 准备缓存数据（保存加密后的密码）
         const cacheAccounts = responseData.accounts.map((account) => ({
           rid: account.rid,
