@@ -1,155 +1,240 @@
-
+/**
+ * Tauri 客户端模块
+ * 封装与 Tauri 后端的所有交互逻辑
+ */
 import { invoke } from "@tauri-apps/api/core";
+import type {
+  CacheData,
+  ApiResponse,
+  LoginResponseData,
+  QueryResponseData,
+  AccountItem,
+} from "../types";
 
-/**
- * 缓存数据类型定义
- * 用于本地SQLite缓存的数据结构
- */
-interface CacheDataType {
-  username: string; // 用户名
-  update_time: number; // 最后更新时间戳
-  accounts: {
-    // 账户列表
-    rid: number;
-    website: string;
-    account: string;
-    password: string; // 加密后的密码
-  }[];
-}
+// API 基础 URL（从环境变量获取）
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7224/api';
 
-/**
- * Tauri 客户端类
- * 封装了与 Tauri 后端的所有交互逻辑，提供了加密、解密、状态管理等功能
- */
-class TauriClient {
-  /**
-   * 加密消息
-   * @param message 需要加密的明文消息
-   * @returns Promise<string> 加密后的密文
-   */
-  async encrypt(message: string): Promise<string> {
-    return invoke("encrypt", {
-      message: message,
+// ============================================
+// 认证相关 API
+// ============================================
+
+/** 用户登录 */
+export async function login(
+  username: string,
+  password: string,
+  corePassword: string
+): Promise<ApiResponse<LoginResponseData>> {
+  try {
+    const token = await invoke<string>("login", {
+      apiBaseUrl: API_BASE_URL,
+      username,
+      password,
+      corePassword,
     });
-  }
-
-  /**
-   * 解密消息
-   * @param message 需要解密的密文消息
-   * @returns Promise<string> 解密后的明文
-   */
-  async decrypt(message: string): Promise<string> {
-    return invoke("decrypt", {
-      message: message,
-    });
-  }
-
-  /**
-   * 初始化应用状态
-   * 设置用户的基本信息，包括用户名、核心密码和认证令牌
-   * @param username 用户名
-   * @param corePassword 核心密码，用于本地加密
-   * @param token 认证令牌，用于服务器验证
-   * @returns Promise<void>
-   */
-  async initState(
-    username: string,
-    corePassword: string,
-    token: string
-  ): Promise<void> {
-    return invoke("init_state", {
-      username: username,
-      corePassword: corePassword,
-      token: token,
-    });
-  }
-
-  /**
-   * 保存查询缓存到本地SQLite数据库
-   * 将从服务器获取的数据保存到本地，用于离线访问和性能优化
-   *
-   * @param update_time 数据更新时间戳
-   * @param accounts 账户数据数组
-   * @param pull_mode 拉取模式（增量或全量）
-   */
-  // 删除这些函数定义（第61-112行）
-  // async function saveQueryCache(...)
-  // async function loadQueryCache(...)
-  // async function getLastUpdateTime(...)
-  async saveQueryCache(
-    pull_mode: string,
-    update_time: number,
-    accounts: any[]
-  ) {
-    try {
-      // 调用Tauri后端函数保存缓存
-      await invoke("save_query_cache", {
-        pullMode: pull_mode,
-        updateTime: update_time,
-        accountsJson: JSON.stringify(accounts),
-      });
-      console.log("缓存保存成功");
-    } catch (error) {
-      console.error("保存缓存失败:", error);
-    }
-  }
-
-  /**
-   * 从本地SQLite数据库加载查询缓存
-   * 优先从本地缓存加载数据，提高应用响应速度
-   *
-   * @returns Promise<CacheData | null> 缓存数据或null（如果无缓存）
-   */
-  async loadQueryCache(): Promise<CacheDataType | null> {
-    try {
-      // 调用Tauri后端函数加载缓存
-      const result = (await invoke("load_query_cache")) as string;
-      if (result === undefined) {
-        return null;
-      }
-      return JSON.parse(result) as CacheDataType;
-    } catch (error) {
-      console.error("加载缓存失败:", error);
-      return null;
-    }
-  }
-
-  /**
-   * 获取最后更新时间
-   * 返回缓存数据的最后更新时间戳，用于判断数据是否需要刷新
-   * @returns Promise<number> 最后更新时间的时间戳
-   */
-  async getLastUpdateTime(): Promise<number> {
-    return invoke("get_last_update_time");
-  }
-
-  /**
-   * 获取存储的认证令牌
-   * 从本地存储中读取用户的认证令牌
-   * @returns Promise<string> 认证令牌
-   */
-  async getToken(): Promise<string> {
-    return invoke("get_token");
-  }
-
-  /**
-   * 获取存储的用户名
-   * 从本地存储中读取当前登录用户的用户名
-   * @returns Promise<string | null> 用户名，如果获取失败则返回 null
-   */
-  async getUsername(): Promise<string | null> {
-    try {
-      // 调用 Tauri 后端获取用户名
-      const username = (await invoke("get_username")) as string;
-      return username;
-    } catch (error) {
-      // 如果获取失败（如用户未登录），返回 null
-      return null;
-    }
+    return { code: 0, msg: "登录成功", data: { token } };
+  } catch (error) {
+    return { code: -1, msg: getErrorMessage(error) };
   }
 }
 
-// 导出 Tauri 客户端实例（单例模式）
-// 整个应用中使用同一个实例，确保状态一致性
-export const tauriClient = new TauriClient();
-export type CacheData = CacheDataType;
+/** 用户注册 */
+export async function register(
+  username: string,
+  password: string,
+  corePassword: string
+): Promise<ApiResponse<void>> {
+  try {
+    await invoke("register", {
+      apiBaseUrl: API_BASE_URL,
+      username,
+      password,
+      corePassword,
+    });
+    return { code: 0, msg: "注册成功" };
+  } catch (error) {
+    return { code: -1, msg: getErrorMessage(error) };
+  }
+}
+
+/** 验证登录状态 */
+export async function verify(): Promise<boolean> {
+  try {
+    return await invoke<boolean>("verify");
+  } catch {
+    return false;
+  }
+}
+
+/** 获取当前用户名 */
+export async function getUsername(): Promise<string | null> {
+  try {
+    return await invoke<string>("get_username");
+  } catch {
+    return null;
+  }
+}
+
+/** 获取认证令牌 */
+export async function getToken(): Promise<string | null> {
+  try {
+    return await invoke<string>("get_token");
+  } catch {
+    return null;
+  }
+}
+
+// ============================================
+// 账户管理 API
+// ============================================
+
+/** 查询账户列表 */
+export async function queryAccounts(
+  forceRefresh: boolean = false
+): Promise<ApiResponse<QueryResponseData>> {
+  try {
+    const result = await invoke<string>("query_accounts", { forceRefresh });
+    if (!result || result === "{}") {
+      return {
+        code: 0,
+        msg: "无数据",
+        data: { pull_mode: "PULL_NOTHING", update_time: 0, accounts: [] },
+      };
+    }
+    const data = JSON.parse(result) as CacheData;
+    return {
+      code: 0,
+      msg: "查询成功",
+      data: {
+        pull_mode: "PULL_ALL",
+        update_time: data.update_time,
+        accounts: data.accounts,
+      },
+    };
+  } catch (error) {
+    return { code: -1, msg: getErrorMessage(error) };
+  }
+}
+
+/** 插入账户 */
+export async function insertAccount(
+  website: string,
+  account: string,
+  password: string
+): Promise<ApiResponse<void>> {
+  try {
+    await invoke("insert_account", { website, account, password });
+    return { code: 0, msg: "插入成功" };
+  } catch (error) {
+    return { code: -1, msg: getErrorMessage(error) };
+  }
+}
+
+/** 更新账户 */
+export async function updateAccount(
+  rid: number,
+  website: string,
+  account: string,
+  password: string
+): Promise<ApiResponse<void>> {
+  try {
+    await invoke("update_account", { rid, website, account, password });
+    return { code: 0, msg: "更新成功" };
+  } catch (error) {
+    return { code: -1, msg: getErrorMessage(error) };
+  }
+}
+
+/** 删除账户 */
+export async function deleteAccount(rid: number): Promise<ApiResponse<void>> {
+  try {
+    await invoke("delete_account", { rid });
+    return { code: 0, msg: "删除成功" };
+  } catch (error) {
+    return { code: -1, msg: getErrorMessage(error) };
+  }
+}
+
+// ============================================
+// 加密解密 API
+// ============================================
+
+/** 加密消息 */
+export async function encrypt(message: string): Promise<string> {
+  return invoke<string>("encrypt", { message });
+}
+
+/** 解密消息 */
+export async function decrypt(message: string): Promise<string> {
+  return invoke<string>("decrypt", { message });
+}
+
+/** 批量解密消息 */
+export async function decryptBatch(messages: string[]): Promise<string[]> {
+  return invoke<string[]>("decrypt_batch", { messages });
+}
+
+/** 批量解密账户密码（使用后端批量解密命令提高性能） */
+export async function decryptAccounts(
+  accounts: AccountItem[]
+): Promise<AccountItem[]> {
+  if (accounts.length === 0) return [];
+  
+  // 提取所有密码进行批量解密
+  const passwords = accounts.map(acc => acc.password);
+  const decryptedPasswords = await decryptBatch(passwords);
+  
+  // 将解密后的密码分配回各账户
+  return accounts.map((acc, index) => ({
+    ...acc,
+    password: decryptedPasswords[index] || acc.password,
+  }));
+}
+
+// ============================================
+// 缓存 API
+// ============================================
+
+/** 保存查询缓存 */
+export async function saveQueryCache(
+  pullMode: string,
+  updateTime: number,
+  accounts: AccountItem[]
+): Promise<void> {
+  try {
+    await invoke("save_query_cache", {
+      pullMode,
+      updateTime,
+      accountsJson: JSON.stringify(accounts),
+    });
+  } catch (error) {
+    console.error("保存缓存失败:", error);
+  }
+}
+
+/** 加载查询缓存 */
+export async function loadQueryCache(): Promise<CacheData | null> {
+  try {
+    const result = await invoke<string>("load_query_cache");
+    if (!result || result === "{}") return null;
+    return JSON.parse(result) as CacheData;
+  } catch (error) {
+    console.error("加载缓存失败:", error);
+    return null;
+  }
+}
+
+/** 获取最后更新时间 */
+export async function getLastUpdateTime(): Promise<number> {
+  return invoke<number>("get_last_update_time");
+}
+
+// ============================================
+// 工具函数
+// ============================================
+
+/** 获取错误消息 */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return '未知错误';
+}
