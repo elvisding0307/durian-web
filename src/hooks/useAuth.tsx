@@ -1,147 +1,148 @@
+/**
+ * 认证状态管理 Hook
+ * 提供用户登录、登出、状态检查等功能
+ */
 import {
   useState,
   useEffect,
+  useCallback,
   createContext,
   useContext,
-  ReactNode,
+  useMemo,
 } from "react";
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  hashPassword,
-  DURIAN_PASSWORD_SALT,
-  DURIAN_CORE_PASSWORD_SALT,
-} from "../utils/hash";
-import { apiClient } from "../libs/api";
-import { tauriClient } from "../libs/tauri";
+import * as api from "../libs/tauri";
+import type { User, AuthContextType, LoginFormData } from "../types";
 
-interface User {
-  username: string;
+// 创建认证上下文
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/** 认证提供者组件 Props */
+interface AuthProviderProps {
+  children: ReactNode;
 }
 
-interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  login: (
-    username: string,
-    password: string,
-    core_password: string
-  ) => Promise<void>;
-  // logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
-}
-
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-);
-
-export function AuthProvider({ children }: { children: ReactNode }) {
+/**
+ * 认证提供者组件
+ * 包装应用程序以提供认证状态
+ */
+export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const navigate = useNavigate(); // Move useNavigate to the top level
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  const login = async (
-    username: string,
-    password: string,
-    core_password: string
-  ) => {
-    try {
-      setIsLoading(true);
-      // 对密码进行加盐哈希
-      const { hash: hashedPassword } = await hashPassword(
-        password,
-        DURIAN_PASSWORD_SALT
-      );
-      const { hash: hashedCorePassword } = await hashPassword(
-        core_password,
-        DURIAN_CORE_PASSWORD_SALT
-      );
-      const response = await apiClient.login({
-        username,
-        password: hashedPassword,
-        core_password: hashedCorePassword,
-      });
-      // 解构赋值
-      const { code, msg, data } = response;
-      if (code === undefined || msg === undefined) {
-        throw new Error("Invalid response format: missing required fields");
-      }
-      // 登录成功
-      if (response.code === 0 && response.data) {
-        if (!data) {
-          throw new Error("Invalid response format: missing data");
-        }
-        const { token } = data;
-        if (!token) {
-          throw new Error("Invalid response format: missing token");
-        }
-        // 设置用户状态
-        await tauriClient.initState(username, core_password, token);
-        setUser({ username });
-      } else {
-        throw new Error(`${response.code}: ${response.msg}` || "登录失败");
-      }
-    } catch (error) {
-      console.error("Login failed:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const checkAuth = async () => {
-    try {
-      setIsLoading(true);
-      if (!(await apiClient.verify())) {
-        setUser(null);
-        return;
-      }
-      const username = (await tauriClient.getUsername()) || null;
-      if (username === null) {
-        setUser(null);
-        return;
-      }
-      setUser({ username });
-      navigate("/account"); // Use the navigate from the top level
-    } catch (error) {
-      console.error("Auth check failed:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // const logout = async () => {
-  //   try {
-  //     await apiClient.adminLogout();
-  //   } catch (error) {
-  //     console.error("Logout failed:", error);
-  //   } finally {
-  //     router.push("/admin/login");
-  //   }
-  // };
-
-  useEffect(() => {
-    checkAuth();
+  /** 清除错误 */
+  const clearError = useCallback(() => {
+    setError(null);
   }, []);
 
+  /**
+   * 用户登录
+   * @returns 登录是否成功
+   */
+  const login = useCallback(async (data: LoginFormData): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await api.login(
+        data.username,
+        data.password,
+        data.core_password
+      );
+
+      if (response.code === 0 && response.data) {
+        setUser({ username: data.username });
+        return true;
+      } else {
+        setError(response.msg || "登录失败");
+        return false;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "登录失败";
+      setError(message);
+      console.error("Login failed:", err);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  /** 用户登出 */
+  const logout = useCallback(() => {
+    setUser(null);
+    setError(null);
+    navigate("/login");
+  }, [navigate]);
+
+  /** 检查认证状态 */
+  const checkAuth = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      // 验证 token 有效性
+      const isValid = await api.verify();
+      if (!isValid) {
+        setUser(null);
+        return;
+      }
+
+      // 获取用户名
+      const username = await api.getUsername();
+      if (!username) {
+        setUser(null);
+        return;
+      }
+
+      setUser({ username });
+      navigate("/account");
+    } catch (err) {
+      console.error("Auth check failed:", err);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [navigate]);
+
+  // 组件加载时检查认证状态
+  useEffect(() => {
+    checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 使用 useMemo 缓存上下文值，避免不必要的重渲染
+  const contextValue = useMemo<AuthContextType>(
+    () => ({
+      user,
+      isLoading,
+      error,
+      login,
+      logout,
+      checkAuth,
+      clearError,
+    }),
+    [user, isLoading, error, login, logout, checkAuth, clearError]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        // isAuthenticated,
-        login,
-        // logout,
-        checkAuth,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export function useAuth() {
+/**
+ * 使用认证状态 Hook
+ * @returns 认证上下文
+ */
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
+
+export { AuthContext };
