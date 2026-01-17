@@ -25,11 +25,17 @@ const CONNECT_TIMEOUT_SECS: u64 = 10;
 // ============================================
 
 /// 全局 HTTP 客户端（单例）
+/// 
+/// 注意：已启用 `danger_accept_invalid_certs` 以支持自签名 SSL 证书。
+/// 这在连接使用自签名证书的 HTTPS 服务器时是必需的。
+/// 安全警告：此设置会跳过证书验证，仅建议在可信网络环境中使用。
 pub static HTTP_CLIENT: Lazy<Client> = Lazy::new(|| {
     Client::builder()
         .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
         .connect_timeout(Duration::from_secs(CONNECT_TIMEOUT_SECS))
         .pool_max_idle_per_host(5)
+        // 允许自签名证书（跳过 SSL 证书验证）
+        .danger_accept_invalid_certs(true)
         .build()
         .expect("创建 HTTP 客户端失败")
 });

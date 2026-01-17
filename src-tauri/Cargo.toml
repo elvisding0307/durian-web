@@ -1,6 +1,6 @@
 [package]
 name = "durian-web"
-version = "0.1.0"
+version = "0.1.2"
 description = "A password management tool."
 authors = ["ElvisDing"]
 edition = "2021"
